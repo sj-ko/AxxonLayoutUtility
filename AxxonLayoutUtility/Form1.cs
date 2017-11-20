@@ -11,6 +11,7 @@ using System.Net;
 using System.IO;
 using System.Threading;
 using System.Diagnostics;
+using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -18,15 +19,29 @@ namespace AxxonLayoutUtility
 {
     public partial class Form1 : Form
     {
-        public const int TIMEOUT = 30000;
+        public const int TIMEOUT = 3000;
+        public const int MAX_MONITOR = 4;
+
+        public int monitorCount = 1;
 
         public string clientLayoutJson = "";
-        public List<LayoutInfo> layoutList, layoutListR, layoutList_Display1, layoutList_Display2;
-        public List<DisplayInfo> displayList;
-        public Thread layoutPlayer1, layoutPlayer2;
-        public bool isLayout1Playing = false, isLayout2Playing = false, isAllPlaying = false;
 
-        public ManualResetEvent resetEvent_Display1, resetEvent_Display2;
+        public List<LayoutInfo> layoutList, layoutListR;
+
+        //public List<LayoutInfo> layoutList_Display1, layoutList_Display2, layoutList_Display3, layoutList_Display4;
+        public List<LayoutInfo>[] layoutList_Display_Array = new List<LayoutInfo>[MAX_MONITOR];
+
+        public List<DisplayInfo> displayList;
+
+        //public Thread layoutPlayer1, layoutPlayer2, layoutPlayer3, layoutPlayer4;
+        public Thread[] layoutPlayer_Array = new Thread[MAX_MONITOR];
+
+        public bool isAllPlaying = false;
+        //public bool isLayout1Playing = false, isLayout2Playing = false, isLayout3Playing = false, isLayout4Playing = false;
+        public bool[] isLayoutPlaying_Array = new bool[MAX_MONITOR];
+
+        //public ManualResetEvent resetEvent_Display1, resetEvent_Display2, resetEvent_Display3, resetEvent_Display4;
+        public ManualResetEvent[] resetEvent_Display_Array = new ManualResetEvent[MAX_MONITOR];
 
         public const int WM_NCLBUTTONDOWN = 0xA1;
         public const int HT_CAPTION = 0x2;
@@ -52,8 +67,17 @@ namespace AxxonLayoutUtility
             GetCurrentLayout();
             GetCurrentDisplay();
 
+/*
             resetEvent_Display1 = new ManualResetEvent(false);
             resetEvent_Display2 = new ManualResetEvent(false);
+            resetEvent_Display3 = new ManualResetEvent(false);
+            resetEvent_Display4 = new ManualResetEvent(false);
+*/
+
+            for(int i = 0; i < MAX_MONITOR; i++)
+            {
+                resetEvent_Display_Array[i] = new ManualResetEvent(false);
+            }
         }
 
         private void SetNetSh()
@@ -101,8 +125,17 @@ namespace AxxonLayoutUtility
             layoutList.Sort(delegate (LayoutInfo a, LayoutInfo b) { return a.Name.CompareTo(b.Name); });
             layoutListR.Sort(delegate (LayoutInfo a, LayoutInfo b) { return b.Name.CompareTo(a.Name); });
 
+/*
             layoutList_Display1 = new List<LayoutInfo>();
             layoutList_Display2 = new List<LayoutInfo>();
+            layoutList_Display3 = new List<LayoutInfo>();
+            layoutList_Display4 = new List<LayoutInfo>();
+*/
+
+            for (int i = 0; i < layoutList_Display_Array.Length; i++)
+            {
+                layoutList_Display_Array[i] = new List<LayoutInfo>();
+            }
 
             // divide layout (for odd/even)
             /*for(int i = 0; i < layoutList.Count; i++)
@@ -120,6 +153,37 @@ namespace AxxonLayoutUtility
                     Console.WriteLine("--> Display2");
                 }
             }*/
+
+            foreach (LayoutInfo layout in layoutList)
+            {
+                Console.WriteLine(layout.Id + " : " + layout.Name);
+
+                if (layout.Name.EndsWith("_1"))
+                {
+                    //layoutList_Display1.Add(layout);
+                    layoutList_Display_Array[0].Add(layout);
+                    Console.WriteLine("--> Display1");
+                }
+                else if (layout.Name.EndsWith("_2"))
+                {
+                    //layoutList_Display2.Add(layout);
+                    layoutList_Display_Array[1].Add(layout);
+                    Console.WriteLine("--> Display2");
+                }
+                else if (layout.Name.EndsWith("_3"))
+                {
+                    //layoutList_Display3.Add(layout);
+                    layoutList_Display_Array[2].Add(layout);
+                    Console.WriteLine("--> Display3");
+                }
+                else if (layout.Name.EndsWith("_4"))
+                {
+                    //layoutList_Display4.Add(layout);
+                    layoutList_Display_Array[3].Add(layout);
+                    Console.WriteLine("--> Display4");
+                }
+
+            }
 
             foreach (LayoutInfo info in layoutList)
             {
@@ -168,18 +232,47 @@ namespace AxxonLayoutUtility
             {
                 Console.WriteLine(info.Id + ", Mainform " + info.IsMainForm);
             }
+
+            switch (displayList.Count)
+            {
+                case 3:
+                    button_display4.Visible = false;
+                    break;
+                case 2:
+                    button_display4.Visible = false;
+                    button_display3.Visible = false;
+                    break;
+                case 1:
+                    button_display4.Visible = false;
+                    button_display3.Visible = false;
+                    button_display2.Visible = false;
+                    break;
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            OnClickButton1();
+            //OnClickButton1();
+            OnClickButton(0);
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            OnClickButton2();
+            //OnClickButton2();
+            OnClickButton(1);
         }
 
+        private void button_display3_Click(object sender, EventArgs e)
+        {
+            OnClickButton(2);
+        }
+
+        private void button_display4_Click(object sender, EventArgs e)
+        {
+            OnClickButton(3);
+        }
+
+#if false
         private void LayoutPlayerThread1()
         {
             foreach (LayoutInfo thisloop in GetLoopLayout_Display())
@@ -235,6 +328,37 @@ namespace AxxonLayoutUtility
                 Thread.Sleep(TIMEOUT);
             }
         }
+#endif
+
+        private void LayoutPlayerThread(int monitorNo)
+        {
+            Console.WriteLine((monitorNo + 1) + " monitor thread created");
+            foreach (LayoutInfo thisloop in GetLoopLayout_Display_Array(monitorNo))
+            {
+                resetEvent_Display_Array[monitorNo].WaitOne();
+
+                if (isLayoutPlaying_Array[monitorNo] == false)
+                {
+                    break;
+                }
+
+                string url = @"http://localhost:8888/SwitchLayout?layoutId=" + thisloop.Id + @"&displayId=" + displayList[monitorNo].Id;  //\\.\DISPLAY2";
+                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(url);
+                request.Method = "GET";
+                String respStr = String.Empty;
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                {
+                    Stream dataStream = response.GetResponseStream();
+                    StreamReader reader = new StreamReader(dataStream);
+                    respStr = reader.ReadToEnd();
+                    reader.Close();
+                    dataStream.Close();
+                }
+
+                Console.WriteLine((monitorNo + 1) + " monitor cmd sent : " + url);
+                Thread.Sleep(TIMEOUT);
+            }
+        }
 #if false
         public IEnumerable<LayoutInfo> GetLoopLayout()
         {
@@ -248,6 +372,7 @@ namespace AxxonLayoutUtility
         }
 #endif
 
+#if false
         public IEnumerable<LayoutInfo> GetLoopLayout_Display1()
         {
             while (true)
@@ -264,6 +389,40 @@ namespace AxxonLayoutUtility
             while (true)
             {
                 foreach (var layout in layoutList_Display2)
+                {
+                    yield return layout;
+                }
+            }
+        }
+
+        public IEnumerable<LayoutInfo> GetLoopLayout_Display3()
+        {
+            while (true)
+            {
+                foreach (var layout in layoutList_Display3)
+                {
+                    yield return layout;
+                }
+            }
+        }
+
+        public IEnumerable<LayoutInfo> GetLoopLayout_Display4()
+        {
+            while (true)
+            {
+                foreach (var layout in layoutList_Display4)
+                {
+                    yield return layout;
+                }
+            }
+        }
+#endif
+
+        public IEnumerable<LayoutInfo> GetLoopLayout_Display_Array(int monitorNo)
+        {
+            while (true)
+            {
+                foreach (var layout in layoutList_Display_Array[monitorNo])
                 {
                     yield return layout;
                 }
@@ -299,6 +458,7 @@ namespace AxxonLayoutUtility
                 isAllPlaying = true;
                 button_displayAll.Text = "일괄 정지";
 
+                /*
                 if (isLayout1Playing == false)
                 {
                     isLayout1Playing = true;
@@ -329,6 +489,40 @@ namespace AxxonLayoutUtility
                     {
                         resetEvent_Display2.Set();
                     }
+                }*/
+
+                for (int i = 0; i < displayList.Count; i++)
+                {
+                    int monitorNo = i;
+                    if (isLayoutPlaying_Array[monitorNo] == false)
+                    {
+                        isLayoutPlaying_Array[monitorNo] = true;
+                        switch (monitorNo)
+                        {
+                            case 0:
+                                button_display1.Text = (monitorNo + 1) + "번 모니터 정지";
+                                break;
+                            case 1:
+                                button_display2.Text = (monitorNo + 1) + "번 모니터 정지";
+                                break;
+                            case 2:
+                                button_display3.Text = (monitorNo + 1) + "번 모니터 정지";
+                                break;
+                            case 3:
+                                button_display4.Text = (monitorNo + 1) + "번 모니터 정지";
+                                break;
+                        }
+                        if (layoutPlayer_Array[monitorNo] == null)
+                        {
+                            layoutPlayer_Array[monitorNo] = new Thread(() => { LayoutPlayerThread(monitorNo); });
+                            layoutPlayer_Array[monitorNo].Start();
+                            resetEvent_Display_Array[monitorNo].Set();
+                        }
+                        else
+                        {
+                            resetEvent_Display_Array[monitorNo].Set();
+                        }
+                    }
                 }
             }
             else
@@ -336,6 +530,7 @@ namespace AxxonLayoutUtility
                 isAllPlaying = false;
                 button_displayAll.Text = "일괄 시작";
 
+                /*
                 if (isLayout1Playing == true)
                 {
                     isLayout1Playing = false;
@@ -352,10 +547,36 @@ namespace AxxonLayoutUtility
                     //layoutPlayer2.Abort();
                     //layoutPlayer2 = null;
                     resetEvent_Display2.Reset();
+                }*/
+
+                for (int i = 0; i < displayList.Count; i++)
+                {
+                    int monitorNo = i;
+                    isLayoutPlaying_Array[monitorNo] = false;
+                    //button_display1.Text = "1번 모니터 시작";
+                    switch (monitorNo)
+                    {
+                        case 0:
+                            button_display1.Text = (monitorNo + 1) + "번 모니터 시작";
+                            break;
+                        case 1:
+                            button_display2.Text = (monitorNo + 1) + "번 모니터 시작";
+                            break;
+                        case 2:
+                            button_display3.Text = (monitorNo + 1) + "번 모니터 시작";
+                            break;
+                        case 3:
+                            button_display4.Text = (monitorNo + 1) + "번 모니터 시작";
+                            break;
+                    }
+                    //layoutPlayer1.Abort();
+                    //layoutPlayer1 = null;
+                    resetEvent_Display_Array[monitorNo].Reset();
                 }
             }
         }
 
+#if false
         private void OnClickButton1()
         {
             if (isLayout1Playing == false)
@@ -409,9 +630,70 @@ namespace AxxonLayoutUtility
                 resetEvent_Display2.Reset();
             }
         }
+#endif
+
+        private void OnClickButton(int monitorNo)
+        {
+            //PropertyInfo property = this.GetType().GetProperty("button_display" + (monitorNo+1));
+
+            if (isLayoutPlaying_Array[monitorNo] == false)
+            {
+                isLayoutPlaying_Array[monitorNo] = true;
+                //button_display2.Text = (monitorNo+1) + "번 모니터 정지";
+                switch (monitorNo)
+                {
+                    case 0:
+                        button_display1.Text = (monitorNo + 1) + "번 모니터 정지";
+                        break;
+                    case 1:
+                        button_display2.Text = (monitorNo + 1) + "번 모니터 정지";
+                        break;
+                    case 2:
+                        button_display3.Text = (monitorNo + 1) + "번 모니터 정지";
+                        break;
+                    case 3:
+                        button_display4.Text = (monitorNo + 1) + "번 모니터 정지";
+                        break;
+                }
+                if (layoutPlayer_Array[monitorNo] == null)
+                {
+                    layoutPlayer_Array[monitorNo] = new Thread(() => { LayoutPlayerThread(monitorNo); });
+                    layoutPlayer_Array[monitorNo].Start();
+                    resetEvent_Display_Array[monitorNo].Set();
+                }
+                else
+                {
+                    resetEvent_Display_Array[monitorNo].Set();
+                }
+            }
+            else
+            {
+                isLayoutPlaying_Array[monitorNo] = false;
+                //button_display2.Text = (monitorNo + 1) + "번 모니터 시작";
+                switch (monitorNo)
+                {
+                    case 0:
+                        button_display1.Text = (monitorNo + 1) + "번 모니터 시작";
+                        break;
+                    case 1:
+                        button_display2.Text = (monitorNo + 1) + "번 모니터 시작";
+                        break;
+                    case 2:
+                        button_display3.Text = (monitorNo + 1) + "번 모니터 시작";
+                        break;
+                    case 3:
+                        button_display4.Text = (monitorNo + 1) + "번 모니터 시작";
+                        break;
+                }
+                //layoutPlayer2.Abort();
+                //layoutPlayer2 = null;
+                resetEvent_Display_Array[monitorNo].Reset();
+            }
+        }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            /*
             if (layoutPlayer1 != null)
             {
                 layoutPlayer1.Abort();
@@ -423,6 +705,27 @@ namespace AxxonLayoutUtility
                 layoutPlayer2.Abort();
                 layoutPlayer2 = null;
             }
+
+            if (layoutPlayer3 != null)
+            {
+                layoutPlayer3.Abort();
+                layoutPlayer3 = null;
+            }
+
+            if (layoutPlayer4 != null)
+            {
+                layoutPlayer4.Abort();
+                layoutPlayer4 = null;
+            }*/
+
+            for (int i = 0; i < layoutPlayer_Array.Length; i++)
+            {
+                if (layoutPlayer_Array[i] != null)
+                {
+                    layoutPlayer_Array[i].Abort();
+                    layoutPlayer_Array[i] = null;
+                }
+            }
         }
 
         private void button_Minimize_Click(object sender, EventArgs e)
@@ -433,6 +736,66 @@ namespace AxxonLayoutUtility
         private void button_Exit_Click(object sender, EventArgs e)
         {
             Application.Exit();
+        }
+
+        private void button_display1_TextChanged(object sender, EventArgs e)
+        {
+            if (button_display1.Text.Contains("시작"))
+            {
+                button_display1.BackColor = Color.DarkOrange;
+            }
+            else if (button_display1.Text.Contains("정지"))
+            {
+                button_display1.BackColor = Color.Cyan;
+            }
+        }
+
+        private void button_display2_TextChanged(object sender, EventArgs e)
+        {
+            if (button_display2.Text.Contains("시작"))
+            {
+                button_display2.BackColor = Color.DarkOrange;
+            }
+            else if (button_display2.Text.Contains("정지"))
+            {
+                button_display2.BackColor = Color.Cyan;
+            }
+        }
+
+        private void button_display3_TextChanged(object sender, EventArgs e)
+        {
+            if (button_display3.Text.Contains("시작"))
+            {
+                button_display3.BackColor = Color.DarkOrange;
+            }
+            else if (button_display3.Text.Contains("정지"))
+            {
+                button_display3.BackColor = Color.Cyan;
+            }
+        }
+
+        private void button_display4_TextChanged(object sender, EventArgs e)
+        {
+            if (button_display4.Text.Contains("시작"))
+            {
+                button_display4.BackColor = Color.DarkOrange;
+            }
+            else if (button_display4.Text.Contains("정지"))
+            {
+                button_display4.BackColor = Color.Cyan;
+            }
+        }
+
+        private void button_displayAll_TextChanged(object sender, EventArgs e)
+        {
+            if (button_displayAll.Text.Contains("시작"))
+            {
+                button_displayAll.BackColor = Color.DarkOrange;
+            }
+            else if (button_displayAll.Text.Contains("정지"))
+            {
+                button_displayAll.BackColor = Color.Cyan;
+            }
         }
 
         private void Form1_MouseDown(object sender, MouseEventArgs e)
