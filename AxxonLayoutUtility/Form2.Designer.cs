@@ -39,10 +39,9 @@
             // button_displayAll
             // 
             this.button_displayAll.BackColor = System.Drawing.Color.DarkOrange;
-            this.button_displayAll.Location = new System.Drawing.Point(15, 32);
-            this.button_displayAll.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.button_displayAll.Location = new System.Drawing.Point(13, 26);
             this.button_displayAll.Name = "button_displayAll";
-            this.button_displayAll.Size = new System.Drawing.Size(123, 36);
+            this.button_displayAll.Size = new System.Drawing.Size(108, 29);
             this.button_displayAll.TabIndex = 2;
             this.button_displayAll.Text = "일괄 시작";
             this.button_displayAll.UseVisualStyleBackColor = false;
@@ -51,10 +50,9 @@
             // 
             // button_Minimize
             // 
-            this.button_Minimize.Location = new System.Drawing.Point(107, 0);
-            this.button_Minimize.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.button_Minimize.Location = new System.Drawing.Point(94, 0);
             this.button_Minimize.Name = "button_Minimize";
-            this.button_Minimize.Size = new System.Drawing.Size(21, 25);
+            this.button_Minimize.Size = new System.Drawing.Size(18, 20);
             this.button_Minimize.TabIndex = 3;
             this.button_Minimize.Text = "_";
             this.button_Minimize.UseVisualStyleBackColor = true;
@@ -62,10 +60,9 @@
             // 
             // button_Exit
             // 
-            this.button_Exit.Location = new System.Drawing.Point(128, 0);
-            this.button_Exit.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.button_Exit.Location = new System.Drawing.Point(112, 0);
             this.button_Exit.Name = "button_Exit";
-            this.button_Exit.Size = new System.Drawing.Size(21, 25);
+            this.button_Exit.Size = new System.Drawing.Size(18, 20);
             this.button_Exit.TabIndex = 4;
             this.button_Exit.Text = "X";
             this.button_Exit.UseVisualStyleBackColor = true;
@@ -74,28 +71,27 @@
             // comboBox_layout
             // 
             this.comboBox_layout.FormattingEnabled = true;
-            this.comboBox_layout.Location = new System.Drawing.Point(66, 84);
-            this.comboBox_layout.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.comboBox_layout.Location = new System.Drawing.Point(58, 67);
             this.comboBox_layout.Name = "comboBox_layout";
-            this.comboBox_layout.Size = new System.Drawing.Size(72, 23);
+            this.comboBox_layout.Size = new System.Drawing.Size(64, 20);
             this.comboBox_layout.TabIndex = 5;
             this.comboBox_layout.SelectedIndexChanged += new System.EventHandler(this.comboBox_layout_SelectedIndexChanged);
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(12, 87);
+            this.label2.Location = new System.Drawing.Point(10, 70);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(37, 15);
+            this.label2.Size = new System.Drawing.Size(29, 12);
             this.label2.TabIndex = 7;
             this.label2.Text = "이동";
             // 
             // Form2
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 15F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.MenuHighlight;
-            this.ClientSize = new System.Drawing.Size(152, 119);
+            this.ClientSize = new System.Drawing.Size(133, 95);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.comboBox_layout);
             this.Controls.Add(this.button_Exit);
@@ -103,10 +99,10 @@
             this.Controls.Add(this.button_displayAll);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.MaximizeBox = false;
             this.Name = "Form2";
             this.Text = "레이아웃";
+            this.TopMost = true;
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form2_FormClosing);
             this.Load += new System.EventHandler(this.Form2_Load);
             this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Form2_MouseDown);

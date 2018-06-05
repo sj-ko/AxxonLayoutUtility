@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define USE_TIMER
+
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -35,6 +37,12 @@ namespace AxxonLayoutUtility
 
         //public Thread layoutPlayer1, layoutPlayer2, layoutPlayer3, layoutPlayer4;
         public Thread[] layoutPlayer_Array = new Thread[MAX_MONITOR];
+
+#if (USE_TIMER == true)
+        // timer
+        public System.Windows.Forms.Timer[] layoutPlayerTimer_Array = new System.Windows.Forms.Timer[MAX_MONITOR];
+        IEnumerator<LayoutInfo>[] layoutEnumerator = new IEnumerator<LayoutInfo>[MAX_MONITOR];
+#endif
 
         public bool isAllPlaying = false;
         //public bool isLayout1Playing = false, isLayout2Playing = false, isLayout3Playing = false, isLayout4Playing = false;
@@ -238,11 +246,38 @@ namespace AxxonLayoutUtility
                 }
 
                 Console.WriteLine((monitorNo + 1) + " monitor cmd sent : " + url);
-                Thread.Sleep(TIMEOUT);
+                Thread.Sleep(TIMEOUT); // + (monitorNo + 1) * 100);
 
                 resetEvent_Display_Array[monitorNo].WaitOne();
             }
         }
+
+#if (USE_TIMER == true)
+        // timer
+        private void LayoutPlayerTimer(object sender, EventArgs e, int monitorNo)
+        {
+            //foreach (LayoutInfo thisloop in GetLoopLayout_Display_Array(monitorNo))
+            //{
+                layoutEnumerator[monitorNo].MoveNext();
+                LayoutInfo thisloop = layoutEnumerator[monitorNo].Current;
+                
+                string url = @"http://localhost:8888/SwitchLayout?layoutId=" + thisloop.Id + @"&displayId=" + displayList[monitorNo].Id;  //\\.\DISPLAY2";
+                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(url);
+                request.Method = "GET";
+                String respStr = String.Empty;
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                {
+                    Stream dataStream = response.GetResponseStream();
+                    StreamReader reader = new StreamReader(dataStream);
+                    respStr = reader.ReadToEnd();
+                    reader.Close();
+                    dataStream.Close();
+                }
+
+                Console.WriteLine((monitorNo + 1) + " monitor cmd sent : " + url + " " + thisloop.Name);
+            //}
+        }
+#endif
 
         public IEnumerable<LayoutInfo> GetLoopLayout_Display_Array(int monitorNo)
         {
@@ -302,6 +337,7 @@ namespace AxxonLayoutUtility
                     {
                         isLayoutPlaying_Array[monitorNo] = true;
 
+#if (USE_TIMER == false)
                         if (layoutPlayer_Array[monitorNo] == null)
                         {
                             layoutPlayer_Array[monitorNo] = new Thread(() => { LayoutPlayerThread(monitorNo); });
@@ -312,6 +348,26 @@ namespace AxxonLayoutUtility
                         {
                             resetEvent_Display_Array[monitorNo].Set();
                         }
+#endif
+
+#if (USE_TIMER == true)
+                        // timer
+                        if (layoutPlayerTimer_Array[monitorNo] == null)
+                        {
+                            layoutEnumerator[monitorNo] = GetLoopLayout_Display_Array(monitorNo).GetEnumerator();
+                            layoutPlayerTimer_Array[monitorNo] = new System.Windows.Forms.Timer();
+                            layoutPlayerTimer_Array[monitorNo].Interval = TIMEOUT;
+                            layoutPlayerTimer_Array[monitorNo].Tick += new EventHandler((eventSender, eventExp) => { LayoutPlayerTimer(eventSender, eventExp, monitorNo); });
+                            layoutPlayerTimer_Array[monitorNo].Start();
+                            LayoutPlayerTimer(null, null, monitorNo);
+                        }
+                        else
+                        {
+                            layoutPlayerTimer_Array[monitorNo].Start();
+                            LayoutPlayerTimer(null, null, monitorNo);
+                        }
+#endif
+
                     }
                 }
             }
@@ -324,16 +380,24 @@ namespace AxxonLayoutUtility
                 {
                     int monitorNo = i;
                     isLayoutPlaying_Array[monitorNo] = false;
+
+#if (USE_TIMER == false)
                     //layoutPlayer1.Abort();
                     //layoutPlayer1 = null;
                     resetEvent_Display_Array[monitorNo].Reset();
+#endif
+
+#if (USE_TIMER == true)
+                    // timer
+                    layoutPlayerTimer_Array[monitorNo].Stop();
+#endif
                 }
             }
         }
 
         private void Form2_FormClosing(object sender, FormClosingEventArgs e)
         {
-
+#if (USE_TIMER == false)
             for (int i = 0; i < layoutPlayer_Array.Length; i++)
             {
                 if (layoutPlayer_Array[i] != null)
@@ -342,6 +406,19 @@ namespace AxxonLayoutUtility
                     layoutPlayer_Array[i] = null;
                 }
             }
+#endif
+
+#if (USE_TIMER == true)
+            for (int i = 0; i < layoutPlayerTimer_Array.Length; i++)
+            {
+                // timer
+                if (layoutPlayerTimer_Array[i] != null)
+                {
+                    layoutPlayerTimer_Array[i].Stop();
+                    layoutPlayerTimer_Array[i] = null;
+                }
+            }
+#endif
         }
 
         private void button_Minimize_Click(object sender, EventArgs e)
@@ -376,12 +453,22 @@ namespace AxxonLayoutUtility
             {
                 int monitorNo = i;
                 isLayoutPlaying_Array[monitorNo] = false;
+#if (USE_TIMER == false)
                 if (layoutPlayer_Array[i] != null)
                 {
                     layoutPlayer_Array[i].Abort();
                     layoutPlayer_Array[i] = null;
                 }
                 resetEvent_Display_Array[i].Reset();
+#endif
+#if (USE_TIMER == true)
+                // timer
+                if (layoutPlayerTimer_Array[i] != null)
+                {
+                    layoutPlayerTimer_Array[i].Stop();
+                    layoutPlayerTimer_Array[i] = null;
+                }
+#endif
             }
 
             // restart
@@ -396,6 +483,7 @@ namespace AxxonLayoutUtility
                     isTargetLayoutChange[monitorNo] = true;
                     isLayoutPlaying_Array[monitorNo] = true;
 
+#if (USE_TIMER == false)
                     if (layoutPlayer_Array[monitorNo] == null)
                     {
                         layoutPlayer_Array[monitorNo] = new Thread(() => { LayoutPlayerThread(monitorNo); });
@@ -406,6 +494,25 @@ namespace AxxonLayoutUtility
                     {
                         resetEvent_Display_Array[monitorNo].Set();
                     }
+#endif
+
+#if (USE_TIMER == true)
+                    // timer
+                    if (layoutPlayerTimer_Array[monitorNo] == null)
+                    {
+                        layoutEnumerator[monitorNo] = GetLoopLayout_Display_Array(monitorNo).GetEnumerator();
+                        layoutPlayerTimer_Array[monitorNo] = new System.Windows.Forms.Timer();
+                        layoutPlayerTimer_Array[monitorNo].Interval = TIMEOUT;
+                        layoutPlayerTimer_Array[monitorNo].Tick += new EventHandler((eventSender, eventExp) => { LayoutPlayerTimer(eventSender, eventExp, monitorNo); });
+                        layoutPlayerTimer_Array[monitorNo].Start();
+                        LayoutPlayerTimer(null, null, monitorNo);
+                    }
+                    else
+                    {
+                        layoutPlayerTimer_Array[monitorNo].Start();
+                        LayoutPlayerTimer(null, null, monitorNo);
+                    }
+#endif
                 }
             }
         }
