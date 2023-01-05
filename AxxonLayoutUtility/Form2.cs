@@ -16,14 +16,17 @@ using System.Diagnostics;
 using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Xml;
+using System.Text.RegularExpressions;
 
 namespace AxxonLayoutUtility
 {
     public partial class Form2 : Form
     {
-        public const int TIMEOUT = 30000;
+        //public const int TIMEOUT = 15000;
         public const int MAX_MONITOR = 4;
 
+        public int TIMEOUT = 15000;
         public int monitorCount = 1;
 
         public string clientLayoutJson = "";
@@ -75,6 +78,8 @@ namespace AxxonLayoutUtility
 
         private void Form2_Load(object sender, EventArgs e)
         {
+            ReadConfig();
+
             SetNetSh();
             GetCurrentLayout();
             GetCurrentDisplay();
@@ -139,7 +144,19 @@ namespace AxxonLayoutUtility
             {
                 string layoutNoString = layout.Name.Split('_')[0];
 
-                if(comboBox_layout.FindString(layoutNoString) < 0)
+                Regex regex = new Regex(@"[0-9]{2}_[0-9]{1}");
+
+                if (regex.IsMatch(layout.Name))
+                {
+                    Console.WriteLine(layout.Name + " Match");
+                }
+                else
+                {
+                    Console.WriteLine(layout.Name + " NOT Match");
+                    continue;
+                }
+
+                if (comboBox_layout.FindString(layoutNoString) < 0)
                 {
                     comboBox_layout.Items.Add(layoutNoString);
                 }
@@ -524,6 +541,29 @@ namespace AxxonLayoutUtility
                 ReleaseCapture();
                 SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
             }
+        }
+
+        private void ReadConfig()
+        {
+            try
+            {
+                XmlDocument xml = new XmlDocument();
+                xml.Load(@".\config.xml");
+
+                XmlNodeList nodeList = xml.GetElementsByTagName("Config");
+
+                foreach (XmlNode node in nodeList)
+                {
+                    TIMEOUT = Convert.ToInt32(node["Timeout"].InnerText, 10) * 1000;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("config read error");
+            }
+
+            Console.WriteLine("TIMEOUT " + TIMEOUT);
+
         }
 
     }
